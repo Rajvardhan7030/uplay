@@ -29,6 +29,11 @@ pub trait AudioBackend: Send + Sync {
 
     /// Get total audio duration if known.
     fn duration(&self) -> Option<Duration>;
+
+    /// Check if playback has naturally completed / queue is empty.
+    fn is_finished(&self) -> bool {
+        false
+    }
 }
 
 /// A null/mock audio backend for headless testing and initial scaffolding.
@@ -110,5 +115,6 @@ mod tests {
         assert!(!backend.is_playing);
         assert!(backend.seek(Duration::from_secs(30)).is_ok());
         assert_eq!(backend.position(), Duration::from_secs(30));
+        assert!(!backend.is_finished());
     }
 }

@@ -1,10 +1,11 @@
 //! UPlay binary entry point.
 
 use clap::Parser;
+use std::path::Path;
 use std::process::ExitCode;
-use tracing::{Level, debug, error, info};
+use tracing::{Level, debug, info};
 use tracing_subscriber::FmtSubscriber;
-use uplay::cli::{Cli, Command};
+use uplay::cli::{Cli, Command, play_local_file};
 use uplay::error::Result;
 
 fn init_logging(verbose: bool) {
@@ -25,7 +26,8 @@ fn run(cli: Cli) -> Result<()> {
     match cli.to_command() {
         Some(Command::Play { target }) => {
             if let Some(target) = target {
-                info!("Request to play target: {}", target);
+                let path = Path::new(&target);
+                play_local_file(path)?;
             } else {
                 info!("Request to resume playback");
             }
@@ -81,7 +83,7 @@ fn main() -> ExitCode {
     init_logging(cli.verbose);
 
     if let Err(err) = run(cli) {
-        error!("Error: {err}");
+        eprintln!("Error: {err}");
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

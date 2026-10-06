@@ -30,13 +30,25 @@ impl LocalResolver {
             .unwrap_or(false)
     }
 
-    /// Resolve a local path into a `MediaItem`.
+    /// Resolve a local path into a `MediaItem`, validating existence and format.
     pub fn resolve_file(&self, path: impl Into<PathBuf>) -> Result<MediaItem> {
         let path = path.into();
         if !path.exists() {
             return Err(UPlayError::File {
                 path: path.clone(),
                 reason: "file does not exist".into(),
+            });
+        }
+        if !path.is_file() {
+            return Err(UPlayError::File {
+                path: path.clone(),
+                reason: "path is not a file".into(),
+            });
+        }
+        if !Self::is_audio_file(&path) {
+            return Err(UPlayError::File {
+                path: path.clone(),
+                reason: "unsupported audio format".into(),
             });
         }
         Ok(MediaItem {
@@ -63,5 +75,12 @@ mod tests {
         assert!(LocalResolver::is_audio_file(Path::new("song.FLAC")));
         assert!(!LocalResolver::is_audio_file(Path::new("text.txt")));
         assert!(!LocalResolver::is_audio_file(Path::new("binary")));
+    }
+
+    #[test]
+    fn test_resolve_file_validation() {
+        let resolver = LocalResolver::new();
+        let err = resolver.resolve_file(PathBuf::from("/nonexistent/song.mp3"));
+        assert!(err.is_err());
     }
 }

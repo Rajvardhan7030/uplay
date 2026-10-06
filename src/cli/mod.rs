@@ -1,8 +1,10 @@
 //! Command-line interface definitions, parsing, and execution.
 
 pub mod commands;
+pub mod player;
 
 pub use commands::Command;
+pub use player::play_local_file;
 
 use clap::{Parser, Subcommand};
 
