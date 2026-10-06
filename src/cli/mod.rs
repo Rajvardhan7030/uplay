@@ -4,7 +4,7 @@ pub mod commands;
 pub mod player;
 
 pub use commands::Command;
-pub use player::play_local_file;
+pub use player::{play_local_file, play_path};
 
 use clap::{Parser, Subcommand};
 

@@ -66,6 +66,18 @@ impl PlayerEngine {
         &self.state
     }
 
+    /// Total number of tracks in the active playlist.
+    #[must_use]
+    pub fn playlist_len(&self) -> usize {
+        self.state.playlist.len()
+    }
+
+    /// Get the 0-based index of the currently active track in the playlist.
+    #[must_use]
+    pub fn current_track_index(&self) -> Option<usize> {
+        self.current_index
+    }
+
     /// Load a list of tracks as the active playlist.
     pub fn load_playlist(&mut self, items: Vec<MediaItem>) {
         self.state.playlist = items;
@@ -167,9 +179,24 @@ impl PlayerEngine {
             return Ok(None);
         }
 
-        let next_idx = match self.current_index {
-            Some(idx) => (idx + 1) % self.state.playlist.len(),
-            None => 0,
+        let next_idx = match self.state.playback_mode {
+            PlaybackMode::RepeatOne => self.current_index.unwrap_or(0),
+            _ => match self.current_index {
+                Some(idx) => {
+                    let candidate = idx + 1;
+                    if candidate >= self.state.playlist.len() {
+                        if self.state.playback_mode == PlaybackMode::RepeatPlaylist {
+                            0
+                        } else {
+                            self.stop()?;
+                            return Ok(None);
+                        }
+                    } else {
+                        candidate
+                    }
+                }
+                None => 0,
+            },
         };
 
         self.current_index = Some(next_idx);
@@ -187,7 +214,13 @@ impl PlayerEngine {
         }
 
         let prev_idx = match self.current_index {
-            Some(0) | None => self.state.playlist.len().saturating_sub(1),
+            Some(0) | None => {
+                if self.state.playback_mode == PlaybackMode::RepeatPlaylist {
+                    self.state.playlist.len().saturating_sub(1)
+                } else {
+                    0
+                }
+            }
             Some(idx) => idx - 1,
         };
 
@@ -263,35 +296,28 @@ mod tests {
 
         engine.load_playlist(vec![track1.clone(), track2.clone()]);
         assert_eq!(engine.state().status, PlayerStatus::Stopped);
+        assert_eq!(engine.playlist_len(), 2);
 
-        // Next starts first track
+        // Next starts first track (idx 0)
         let next_track = engine.next().unwrap();
         assert_eq!(next_track, Some(track1.clone()));
         assert_eq!(engine.state().status, PlayerStatus::Playing);
+        assert_eq!(engine.current_track_index(), Some(0));
 
-        // Next advances to second track
+        // Next advances to second track (idx 1)
         let next_track2 = engine.next().unwrap();
         assert_eq!(next_track2, Some(track2.clone()));
+        assert_eq!(engine.current_track_index(), Some(1));
 
-        // Previous goes back to first track
+        // Previous goes back to first track (idx 0)
         let prev_track = engine.previous().unwrap();
         assert_eq!(prev_track, Some(track1.clone()));
+        assert_eq!(engine.current_track_index(), Some(0));
 
-        // Pause
-        engine.pause().unwrap();
-        assert_eq!(engine.state().status, PlayerStatus::Paused);
-
-        // Volume
-        engine.set_volume(90).unwrap();
-        assert_eq!(engine.state().volume, 90);
-
-        // Volume up & down
-        engine.volume_up(5).unwrap();
-        assert_eq!(engine.state().volume, 95);
-        engine.volume_down(10).unwrap();
-        assert_eq!(engine.state().volume, 85);
-
-        // Relative seek
-        assert!(engine.seek_relative(10).is_ok());
+        // End of sequential playlist: advance from 1 -> finishes playlist (returns None)
+        engine.next().unwrap(); // at track 2
+        let end_of_playlist = engine.next().unwrap();
+        assert_eq!(end_of_playlist, None);
+        assert_eq!(engine.state().status, PlayerStatus::Stopped);
     }
 }

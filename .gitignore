@@ -6,4 +6,5 @@
 # Added by cargo
 
 /target
+target/
 *.mp3

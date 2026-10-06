@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 use tracing::{Level, debug, info};
 use tracing_subscriber::FmtSubscriber;
-use uplay::cli::{Cli, Command, play_local_file};
+use uplay::cli::{Cli, Command, play_path};
 use uplay::error::Result;
 
 fn init_logging(verbose: bool) {
@@ -27,7 +27,7 @@ fn run(cli: Cli) -> Result<()> {
         Some(Command::Play { target }) => {
             if let Some(target) = target {
                 let path = Path::new(&target);
-                play_local_file(path)?;
+                play_path(path)?;
             } else {
                 info!("Request to resume playback");
             }

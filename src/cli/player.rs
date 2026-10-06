@@ -1,4 +1,4 @@
-//! Interactive terminal player for local audio playback.
+//! Interactive terminal player for local audio playback (files and folders).
 
 use crate::core::PlayerEngine;
 use crate::core::state::PlayerStatus;
@@ -7,7 +7,7 @@ use crate::sources::LocalResolver;
 use crossterm::QueueableCommand;
 use crossterm::cursor::{Hide, MoveToColumn, Show};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode};
 use std::io::{IsTerminal, Write, stdout};
 use std::path::Path;
 use std::time::Duration;
@@ -85,27 +85,77 @@ pub fn format_progress_bar(pos: Duration, total: Option<Duration>, width: usize)
     }
 }
 
-/// Play a local audio file interactively in the terminal.
-pub fn play_local_file(path: &Path) -> Result<()> {
+/// Play a local target (audio file or entire directory) interactively.
+pub fn play_path(path: &Path) -> Result<()> {
     let resolver = LocalResolver::new();
-    let item = resolver.resolve_file(path)?;
+    let items = resolver.resolve_path(path)?;
 
-    println!("Playing: {}", item.title);
-    println!("Controls: [Space] Pause/Play  [←/→] Seek 5s  [+/-] Vol  [s] Stop  [q] Quit\n");
+    if items.len() == 1 {
+        println!("Playing: {}", items[0].title);
+        println!("Controls: [Space] Pause/Play  [←/→] Seek 5s  [+/-] Vol  [s] Stop  [q] Quit\n");
+    } else {
+        println!("Loaded {} tracks from: {}", items.len(), path.display());
+        println!(
+            "Controls: [Space] Pause/Play  [n] Next  [p] Prev  [←/→] Seek 5s  [+/-] Vol  [s] Stop  [q] Quit\n"
+        );
+    }
 
     let mut engine = PlayerEngine::with_rodio();
-    engine.load_and_play(item)?;
+    let total_tracks = items.len();
+    engine.load_playlist(items);
+    engine.next()?;
 
     let is_interactive = stdout().is_terminal() && std::io::stdin().is_terminal();
 
     if is_interactive {
         let _guard = TerminalGuard::enter()?;
         let mut stdout_handle = stdout();
+        let mut last_displayed_index = None;
 
         loop {
+            // Automatic advancement when current track finishes
+            if engine.is_finished() {
+                match engine.next()? {
+                    Some(_) => {
+                        continue;
+                    }
+                    None => {
+                        // End of playlist reached
+                        break;
+                    }
+                }
+            }
+
+            let state = engine.state();
+            if state.status == PlayerStatus::Stopped {
+                break;
+            }
+
+            let current_idx = engine.current_track_index().unwrap_or(0);
+            if last_displayed_index != Some(current_idx) {
+                last_displayed_index = Some(current_idx);
+                let current_title = state
+                    .current_item
+                    .as_ref()
+                    .map_or("Unknown Track", |i| i.title.as_str());
+
+                let _ = stdout_handle.queue(MoveToColumn(0));
+                let _ = stdout_handle.queue(Clear(ClearType::CurrentLine));
+                if total_tracks > 1 {
+                    let _ = writeln!(
+                        stdout_handle,
+                        "\r▶ [Track {}/{}] {}",
+                        current_idx + 1,
+                        total_tracks,
+                        current_title
+                    );
+                } else {
+                    let _ = writeln!(stdout_handle, "\r▶ {current_title}");
+                }
+            }
+
             let pos = engine.position();
             let total = engine.duration();
-            let state = engine.state();
 
             let status_str = match state.status {
                 PlayerStatus::Playing => "Playing",
@@ -126,10 +176,6 @@ pub fn play_local_file(path: &Path) -> Result<()> {
             let _ = write!(stdout_handle, "{status_line}");
             let _ = stdout_handle.flush();
 
-            if engine.is_finished() || state.status == PlayerStatus::Stopped {
-                break;
-            }
-
             if event::poll(Duration::from_millis(100)).unwrap_or(false) {
                 if let Ok(Event::Key(key)) = event::read() {
                     if key.kind == KeyEventKind::Press {
@@ -143,6 +189,14 @@ pub fn play_local_file(path: &Path) -> Result<()> {
                         match key.code {
                             KeyCode::Char(' ') => {
                                 let _ = engine.toggle_play();
+                            }
+                            KeyCode::Char('n') => {
+                                if engine.next()?.is_none() {
+                                    break;
+                                }
+                            }
+                            KeyCode::Char('p') => {
+                                let _ = engine.previous();
                             }
                             KeyCode::Left => {
                                 let _ = engine.seek_relative(-5);
@@ -171,13 +225,21 @@ pub fn play_local_file(path: &Path) -> Result<()> {
             }
         }
     } else {
-        // Non-interactive fallback (e.g. piped input or CI)
-        while !engine.is_finished() && engine.state().status == PlayerStatus::Playing {
+        // Non-interactive fallback (e.g. piped input or CI test)
+        while engine.state().status == PlayerStatus::Playing {
+            if engine.is_finished() && engine.next()?.is_none() {
+                break;
+            }
             std::thread::sleep(Duration::from_millis(250));
         }
     }
 
     Ok(())
+}
+
+/// Backwards-compatible alias for single file playback.
+pub fn play_local_file(path: &Path) -> Result<()> {
+    play_path(path)
 }
 
 #[cfg(test)]
@@ -194,7 +256,7 @@ mod tests {
     #[test]
     fn test_format_progress_bar() {
         let bar = format_progress_bar(Duration::from_secs(50), Some(Duration::from_secs(100)), 10);
-        assert_eq!(bar.len(), 12); // '[' + 10 chars + ']'
+        assert_eq!(bar.len(), 12);
         assert!(bar.starts_with('['));
         assert!(bar.ends_with(']'));
     }
