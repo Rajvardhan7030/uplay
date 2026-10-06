@@ -1,0 +1,28 @@
+[package]
+name = "uplay"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+description = "A lightweight, Linux-first music player and engine"
+readme = "README.md"
+license = "MIT"
+keywords = ["music", "player", "cli", "tui", "linux"]
+categories = ["command-line-utilities", "multimedia::audio"]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive", "cargo"] }
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = 0 }
+suspicious = { level = "warn", priority = 0 }
+complexity = { level = "warn", priority = 0 }
+perf = { level = "warn", priority = 0 }
+style = { level = "warn", priority = 0 }

@@ -1,0 +1,51 @@
+.TH UPLAY 1 "October 2026" "uplay 0.1.0" "User Commands"
+.SH NAME
+uplay \- lightweight, Linux-first music player and engine
+.SH SYNOPSIS
+.B uplay
+[\fIOPTIONS\fR] [\fITARGET\fR]
+.br
+.B uplay
+\fICOMMAND\fR [\fIARGS\fR...]
+.SH DESCRIPTION
+\fBuplay\fR is a fast, terminal-first music player built for Linux following the Unix philosophy.
+.SH OPTIONS
+.TP
+\fB\-s\fR, \fB\-\-shuffle\fR
+Enable shuffle playback mode.
+.TP
+\fB\-r\fR, \fB\-\-repeat\fR \fIMODE\fR
+Set repeat mode (off, one, playlist).
+.TP
+\fB\-\-resume\fR
+Resume playback from previous session.
+.TP
+\fB\-\-stdin\fR
+Read audio paths from standard input.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Enable verbose debug output.
+.SH COMMANDS
+.TP
+\fBplay\fR [\fITARGET\fR]
+Play target file/directory or resume playback.
+.TP
+\fBpause\fR
+Pause active playback.
+.TP
+\fBstop\fR
+Stop playback.
+.TP
+\fBnext\fR
+Advance to next track.
+.TP
+\fBprevious\fR
+Return to previous track.
+.TP
+\fBvolume\fR \fILEVEL\fR
+Set volume level (0..=100).
+.TP
+\fBqueue\fR \fITARGET\fR
+Enqueue track or URL.
+.SH AUTHORS
+UPlay Contributors.
