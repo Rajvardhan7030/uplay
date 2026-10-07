@@ -96,7 +96,6 @@ uplay/
 Full architectural specifications and development roadmaps are available in the [docs/](docs/) directory:
 - [Architecture](docs/architecture.md)
 - [Summary](docs/summary.md)
-- [Roadmap](docs/roadmap.md)
 
 ---
 
