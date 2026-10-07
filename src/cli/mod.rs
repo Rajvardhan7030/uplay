@@ -4,7 +4,7 @@ pub mod commands;
 pub mod player;
 
 pub use commands::Command;
-pub use player::{play_local_file, play_path};
+pub use player::{play_local_file, play_path, play_path_with_options};
 
 use clap::{Parser, Subcommand};
 
@@ -71,10 +71,22 @@ pub enum Subcommands {
         /// Repeat mode name.
         mode: String,
     },
-    /// Add an item to the playback queue.
+    /// Add an item to the playback queue or inspect queue.
     Queue {
         /// Audio path or stream URL to queue.
-        target: String,
+        target: Option<String>,
+
+        /// Add track to play immediately next.
+        #[arg(long)]
+        next: bool,
+
+        /// Clear all tracks from queue.
+        #[arg(long)]
+        clear: bool,
+
+        /// List tracks currently in queue.
+        #[arg(long)]
+        list: bool,
     },
     /// Start the background playback daemon.
     Daemon,
@@ -97,7 +109,26 @@ impl Cli {
                 Subcommands::Volume { level } => Some(Command::Volume(*level)),
                 Subcommands::Shuffle => Some(Command::Shuffle),
                 Subcommands::Repeat { mode } => Some(Command::Repeat(mode.clone())),
-                Subcommands::Queue { target } => Some(Command::Queue(target.clone())),
+                Subcommands::Queue {
+                    target,
+                    next,
+                    clear,
+                    list,
+                } => {
+                    if *clear {
+                        Some(Command::QueueClear)
+                    } else if *list {
+                        Some(Command::QueueList)
+                    } else if let Some(target) = target {
+                        if *next {
+                            Some(Command::QueueNext(target.clone()))
+                        } else {
+                            Some(Command::Queue(target.clone()))
+                        }
+                    } else {
+                        Some(Command::QueueList)
+                    }
+                }
                 Subcommands::Daemon => None,
             }
         } else {
@@ -131,5 +162,14 @@ mod tests {
 
         let cli = Cli::parse_from(["uplay", "volume", "75"]);
         assert_eq!(cli.to_command(), Some(Command::Volume(75)));
+
+        let cli = Cli::parse_from(["uplay", "queue", "urgent.flac", "--next"]);
+        assert_eq!(
+            cli.to_command(),
+            Some(Command::QueueNext("urgent.flac".into()))
+        );
+
+        let cli = Cli::parse_from(["uplay", "queue", "--clear"]);
+        assert_eq!(cli.to_command(), Some(Command::QueueClear));
     }
 }

@@ -30,6 +30,12 @@ pub enum Command {
     Shuffle,
     /// Set repeat mode ("off", "one", "playlist").
     Repeat(String),
-    /// Enqueue a file or URL.
+    /// Enqueue a file or URL to the end of the queue.
     Queue(String),
+    /// Enqueue a file or URL to play immediately next.
+    QueueNext(String),
+    /// Clear all items from the queue.
+    QueueClear,
+    /// Inspect / list all queued tracks.
+    QueueList,
 }

@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 use tracing::{Level, debug, info};
 use tracing_subscriber::FmtSubscriber;
-use uplay::cli::{Cli, Command, play_path};
+use uplay::cli::{Cli, Command, play_path_with_options};
 use uplay::error::Result;
 
 fn init_logging(verbose: bool) {
@@ -27,7 +27,7 @@ fn run(cli: Cli) -> Result<()> {
         Some(Command::Play { target }) => {
             if let Some(target) = target {
                 let path = Path::new(&target);
-                play_path(path)?;
+                play_path_with_options(path, cli.shuffle, cli.repeat.as_deref())?;
             } else {
                 info!("Request to resume playback");
             }
@@ -67,6 +67,15 @@ fn run(cli: Cli) -> Result<()> {
         }
         Some(Command::Queue(target)) => {
             info!("Queued target: {}", target);
+        }
+        Some(Command::QueueNext(target)) => {
+            info!("Queued next target: {}", target);
+        }
+        Some(Command::QueueClear) => {
+            info!("Cleared playback queue");
+        }
+        Some(Command::QueueList) => {
+            info!("Playback queue inspected (empty)");
         }
         None => {
             // No command given; in future phases this opens the interactive TUI

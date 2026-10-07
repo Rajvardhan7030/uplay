@@ -1,7 +1,7 @@
 //! Interactive terminal player for local audio playback (files and folders).
 
 use crate::core::PlayerEngine;
-use crate::core::state::PlayerStatus;
+use crate::core::state::{PlaybackMode, PlayerStatus};
 use crate::error::{Result, UPlayError};
 use crate::sources::LocalResolver;
 use crossterm::QueueableCommand;
@@ -85,24 +85,37 @@ pub fn format_progress_bar(pos: Duration, total: Option<Duration>, width: usize)
     }
 }
 
-/// Play a local target (audio file or entire directory) interactively.
-pub fn play_path(path: &Path) -> Result<()> {
+/// Play a local target with optional shuffle and repeat modes.
+pub fn play_path_with_options(path: &Path, shuffle: bool, repeat: Option<&str>) -> Result<()> {
     let resolver = LocalResolver::new();
     let items = resolver.resolve_path(path)?;
 
     if items.len() == 1 {
         println!("Playing: {}", items[0].title);
-        println!("Controls: [Space] Pause/Play  [←/→] Seek 5s  [+/-] Vol  [s] Stop  [q] Quit\n");
+        println!(
+            "Controls: [Space] Pause/Play  [s] Shuffle  [r] Repeat  [←/→] Seek 5s  [+/-] Vol  [q] Quit\n"
+        );
     } else {
         println!("Loaded {} tracks from: {}", items.len(), path.display());
         println!(
-            "Controls: [Space] Pause/Play  [n] Next  [p] Prev  [←/→] Seek 5s  [+/-] Vol  [s] Stop  [q] Quit\n"
+            "Controls: [Space] Pause/Play  [n] Next  [p] Prev  [s] Shuffle  [r] Repeat  [←/→] Seek 5s  [+/-] Vol  [q] Quit\n"
         );
     }
 
     let mut engine = PlayerEngine::with_rodio();
     let total_tracks = items.len();
     engine.load_playlist(items);
+
+    if shuffle {
+        engine.set_mode(PlaybackMode::Shuffle);
+    } else if let Some(rep) = repeat {
+        match rep.to_ascii_lowercase().as_str() {
+            "one" | "track" => engine.set_mode(PlaybackMode::RepeatOne),
+            "playlist" | "all" => engine.set_mode(PlaybackMode::RepeatPlaylist),
+            _ => {}
+        }
+    }
+
     engine.next()?;
 
     let is_interactive = stdout().is_terminal() && std::io::stdin().is_terminal();
@@ -163,13 +176,26 @@ pub fn play_path(path: &Path) -> Result<()> {
                 PlayerStatus::Stopped => "Stopped",
             };
 
+            let mode_tag = match state.playback_mode {
+                PlaybackMode::Sequential => "",
+                PlaybackMode::Shuffle => " [🔀 Shuffle]",
+                PlaybackMode::RepeatOne => " [🔂 Repeat 1]",
+                PlaybackMode::RepeatPlaylist => " [🔁 Repeat All]",
+            };
+
+            let queue_tag = if engine.queue_len() > 0 {
+                format!(" [Queue: {}]", engine.queue_len())
+            } else {
+                String::new()
+            };
+
             let progress = format_progress_bar(pos, total, 20);
             let pos_str = format_duration(pos);
             let total_str = total.map_or("--:--".to_string(), format_duration);
 
             let status_line = format!(
-                "\r{} {} / {} [{}] Vol: {:3}%",
-                progress, pos_str, total_str, status_str, state.volume
+                "\r{} {} / {} [{}]{}{} Vol: {:3}%",
+                progress, pos_str, total_str, status_str, mode_tag, queue_tag, state.volume
             );
 
             let _ = stdout_handle.queue(MoveToColumn(0));
@@ -198,6 +224,12 @@ pub fn play_path(path: &Path) -> Result<()> {
                             KeyCode::Char('p') => {
                                 let _ = engine.previous();
                             }
+                            KeyCode::Char('s') => {
+                                engine.toggle_shuffle();
+                            }
+                            KeyCode::Char('r') => {
+                                engine.cycle_repeat();
+                            }
                             KeyCode::Left => {
                                 let _ = engine.seek_relative(-5);
                             }
@@ -209,10 +241,6 @@ pub fn play_path(path: &Path) -> Result<()> {
                             }
                             KeyCode::Char('-') | KeyCode::Char('_') => {
                                 let _ = engine.volume_down(5);
-                            }
-                            KeyCode::Char('s') => {
-                                let _ = engine.stop();
-                                break;
                             }
                             KeyCode::Char('q') | KeyCode::Esc => {
                                 let _ = engine.stop();
@@ -235,6 +263,11 @@ pub fn play_path(path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Play a local target (audio file or entire directory) interactively.
+pub fn play_path(path: &Path) -> Result<()> {
+    play_path_with_options(path, false, None)
 }
 
 /// Backwards-compatible alias for single file playback.
