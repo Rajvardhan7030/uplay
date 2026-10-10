@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85.0%2B-orange.svg)](https://www.rust-lang.org)
 
-**UPlay** is a lightweight, Linux-first music player and engine designed around the Unix philosophy:
+**UPlay(unix-player)** is a lightweight, Linux-first music player and engine designed around the Unix philosophy:
 
 > *Play music quickly, use very few resources, stay keyboard/terminal friendly, and get out of the user's way.*
 
@@ -42,6 +42,10 @@ cd uplay
 # Build the project
 cargo build --release
 
+#Add the release version to .bashrc(depends on your shell)
+copy the release version folder or its file location and then create a aliase to use it.
+for ex:aliase uplay="path/to/your/realese/folder/destination"
+
 # Run tests
 cargo test
 
@@ -54,10 +58,10 @@ cargo fmt --check
 
 ```bash
 # Show help and CLI options
-cargo run -- --help
+uplay --help
 
 # Play a local audio file (coming in Goal 1)
-cargo run -- /path/to/song.flac
+uplay /path/to/song.flac
 ```
 
 ---
