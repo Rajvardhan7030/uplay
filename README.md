@@ -1,4 +1,5 @@
-# UPlay
+
+# UPlay(unix-player)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.85.0%2B-orange.svg)](https://www.rust-lang.org)
@@ -8,16 +9,6 @@
 > *Play music quickly, use very few resources, stay keyboard/terminal friendly, and get out of the user's way.*
 
 ---
-
-## Features (Roadmap)
-
-- **Local Music Playback**: Play files and directories recursively with low CPU/RAM footprint.
-- **Terminal UI & Scriptable CLI**: Interactive TUI (ratatui) alongside scriptable CLI commands.
-- **Queue & Playlists**: Standard queue operations and local playlist management (M3U/M3U8).
-- **Playback Modes**: Sequential, shuffle, repeat one, repeat playlist.
-- **Session Persistence**: Resume previous tracks, playlists, positions, and queue seamlessly.
-- **Modular Sources**: Local files, HTTP streams, and optional YouTube streaming via resolver plugins.
-- **Optional Background Daemon**: Decoupled engine running over Unix domain sockets for media key integrations and multi-client workflows.
 
 ---
 
@@ -29,31 +20,58 @@
 - **Rust Toolchain**: `rustc` / `cargo` **1.85.0+** (Rust Edition 2024)
 
 ---
-
+---
 ## Getting Started
 
-### Building from Source
+clone the repository
 
 ```bash
-# Clone the repository
-git clone https://github.com/uplay/uplay.git
-cd uplay
+  git clone https://github.com/Rajvardhan7030/uplay.git
+  cd uplay
+```
+running uplay with cargo(not recommended becase uses more cpu%)
 
-# Build the project
-cargo build --release
+```bash
+cargo run -- /path/to/music/file/folder --[options]
 
-#Add the release version to .bashrc(depends on your shell)
+```
+
+Running Release version(recommended)
+```bash
+cargo build --Release
+```
+
+it will create a target folder in current dir then got to "target/release" and run the executable
+
+```bash
+.uplay path/to/music/folder --[options]
+``` 
+
+# Add the release version to .bashrc(depends on your shell)
 copy the release version folder or its file location and then create a aliase to use it.
 for ex:aliase uplay="path/to/your/realese/folder/destination"
 
 # Run tests
+```bash
 cargo test
-
+```
 # Run linter and formatting checks
+```bash 
 cargo clippy
 cargo fmt --check
 ```
+---
+## Roadmap
 
+- **Local Music Playback**: Play files and directories recursively with low CPU/RAM footprint.
+- **Terminal UI & Scriptable CLI**: Interactive TUI (ratatui) alongside scriptable CLI commands.
+- **Queue & Playlists**: Standard queue operations and local playlist management (M3U/M3U8).
+- **Playback Modes**: Sequential, shuffle, repeat one, repeat playlist.
+- **Session Persistence**: Resume previous tracks, playlists, positions, and queue seamlessly.
+- **Modular Sources**: Local files, HTTP streams, and optional YouTube streaming via resolver plugins.
+- **Optional Background Daemon**: Decoupled engine running over Unix domain sockets for media key integrations and multi-client workflows.
+
+---
 ### Basic Usage
 
 ```bash
@@ -62,8 +80,13 @@ uplay --help
 
 # Play a local audio file (coming in Goal 1)
 uplay /path/to/song.flac
-```
 
+# use shuffle
+uplay /path/to/song.flac --shuffle
+
+#use repeat
+uplay /path/to/song.flac --repeat one
+```
 ---
 
 ## Project Structure
@@ -94,7 +117,6 @@ uplay/
 ```
 
 ---
-
 ## Documentation
 
 Full architectural specifications and development roadmaps are available in the [docs/](docs/) directory:
@@ -102,7 +124,6 @@ Full architectural specifications and development roadmaps are available in the 
 - [Summary](docs/summary.md)
 
 ---
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
