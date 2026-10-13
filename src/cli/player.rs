@@ -85,10 +85,16 @@ pub fn format_progress_bar(pos: Duration, total: Option<Duration>, width: usize)
     }
 }
 
-/// Play a local target with optional shuffle and repeat modes.
-pub fn play_path_with_options(path: &Path, shuffle: bool, repeat: Option<&str>) -> Result<()> {
-    let resolver = LocalResolver::new();
-    let items = resolver.resolve_path(path)?;
+/// Play a list of media items with optional label, shuffle, and repeat modes.
+pub fn play_items_with_options(
+    items: Vec<crate::core::state::MediaItem>,
+    title_label: Option<&str>,
+    shuffle: bool,
+    repeat: Option<&str>,
+) -> Result<()> {
+    if items.is_empty() {
+        return Err(UPlayError::Input("no tracks to play".into()));
+    }
 
     if items.len() == 1 {
         println!("Playing: {}", items[0].title);
@@ -96,7 +102,11 @@ pub fn play_path_with_options(path: &Path, shuffle: bool, repeat: Option<&str>) 
             "Controls: [Space] Pause/Play  [s] Shuffle  [r] Repeat  [←/→] Seek 5s  [+/-] Vol  [q] Quit\n"
         );
     } else {
-        println!("Loaded {} tracks from: {}", items.len(), path.display());
+        if let Some(label) = title_label {
+            println!("Loaded {} tracks from: {}", items.len(), label);
+        } else {
+            println!("Loaded {} tracks", items.len());
+        }
         println!(
             "Controls: [Space] Pause/Play  [n] Next  [p] Prev  [s] Shuffle  [r] Repeat  [←/→] Seek 5s  [+/-] Vol  [q] Quit\n"
         );
@@ -263,6 +273,24 @@ pub fn play_path_with_options(path: &Path, shuffle: bool, repeat: Option<&str>) 
     }
 
     Ok(())
+}
+
+/// Play a local target with optional shuffle and repeat modes.
+pub fn play_path_with_options(path: &Path, shuffle: bool, repeat: Option<&str>) -> Result<()> {
+    let resolver = LocalResolver::new();
+    let items = resolver.resolve_path(path)?;
+    let label = path.display().to_string();
+    play_items_with_options(items, Some(&label), shuffle, repeat)
+}
+
+/// Play a playlist with optional shuffle and repeat modes.
+pub fn play_playlist(
+    playlist: &crate::core::Playlist,
+    shuffle: bool,
+    repeat: Option<&str>,
+) -> Result<()> {
+    let label = format!("playlist '{}'", playlist.name);
+    play_items_with_options(playlist.items.clone(), Some(&label), shuffle, repeat)
 }
 
 /// Play a local target (audio file or entire directory) interactively.

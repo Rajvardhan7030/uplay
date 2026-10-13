@@ -86,8 +86,33 @@ uplay /path/to/song.flac --shuffle
 
 #use repeat
 uplay /path/to/song.flac --repeat one
+
 ```
 ---
+
+### playlist management 
+```bash
+# To create a new playlist and add song
+uplay playlist save <name> [targets...]
+
+# To load/play playlist
+uplay playlist load <name>
+
+# To list all existing playlist
+uplay playlist list
+
+# To delete Playlist
+uplay playlist delete <name>
+
+# To add tracks in playlist
+uplay playlist add <name> <targets...>
+
+# To remove tracks from playlist
+uplay playlist remove <name> <target_or_index>
+
+# To show tracks from playlist
+uplay playlist show <name>
+```
 
 ## Project Structure
 

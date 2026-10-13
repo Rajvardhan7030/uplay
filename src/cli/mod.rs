@@ -4,7 +4,9 @@ pub mod commands;
 pub mod player;
 
 pub use commands::Command;
-pub use player::{play_local_file, play_path, play_path_with_options};
+pub use player::{
+    play_items_with_options, play_local_file, play_path, play_path_with_options, play_playlist,
+};
 
 use clap::{Parser, Subcommand};
 
@@ -88,8 +90,66 @@ pub enum Subcommands {
         #[arg(long)]
         list: bool,
     },
+    /// Manage persistent playlists (save, load, list, delete, add, remove).
+    Playlist {
+        #[command(subcommand)]
+        action: PlaylistAction,
+    },
     /// Start the background playback daemon.
     Daemon,
+}
+
+/// Available actions for playlist management.
+#[derive(Debug, Subcommand, Clone, PartialEq, Eq)]
+pub enum PlaylistAction {
+    /// Save active or specified tracks to a named persistent playlist.
+    Save {
+        /// Playlist name.
+        name: String,
+        /// Optional audio tracks, folders, or URLs to save.
+        #[arg(value_name = "TARGETS")]
+        targets: Vec<String>,
+    },
+    /// Load and play a persistent playlist by name.
+    Load {
+        /// Playlist name.
+        name: String,
+    },
+    /// List all saved persistent playlists.
+    List,
+    /// Delete a saved persistent playlist by name.
+    Delete {
+        /// Playlist name.
+        name: String,
+    },
+    /// Create a new persistent playlist.
+    Create {
+        /// Playlist name.
+        name: String,
+        /// Audio tracks, folders, or URLs to initialize with.
+        #[arg(value_name = "TARGETS")]
+        targets: Vec<String>,
+    },
+    /// Add audio tracks, folders, or URLs to an existing playlist.
+    Add {
+        /// Playlist name.
+        name: String,
+        /// Audio targets to append.
+        #[arg(value_name = "TARGETS", required = true)]
+        targets: Vec<String>,
+    },
+    /// Remove an audio track from a playlist by 1-based index or title/target.
+    Remove {
+        /// Playlist name.
+        name: String,
+        /// Target title, path, or 1-based index.
+        target: String,
+    },
+    /// Inspect / show tracks within a saved playlist.
+    Show {
+        /// Playlist name.
+        name: String,
+    },
 }
 
 impl Cli {
@@ -129,6 +189,34 @@ impl Cli {
                         Some(Command::QueueList)
                     }
                 }
+                Subcommands::Playlist { action } => match action {
+                    PlaylistAction::Save { name, targets } => Some(Command::PlaylistSave {
+                        name: name.clone(),
+                        targets: targets.clone(),
+                    }),
+                    PlaylistAction::Load { name } => {
+                        Some(Command::PlaylistLoad { name: name.clone() })
+                    }
+                    PlaylistAction::List => Some(Command::PlaylistList),
+                    PlaylistAction::Delete { name } => {
+                        Some(Command::PlaylistDelete { name: name.clone() })
+                    }
+                    PlaylistAction::Create { name, targets } => Some(Command::PlaylistCreate {
+                        name: name.clone(),
+                        targets: targets.clone(),
+                    }),
+                    PlaylistAction::Add { name, targets } => Some(Command::PlaylistAdd {
+                        name: name.clone(),
+                        targets: targets.clone(),
+                    }),
+                    PlaylistAction::Remove { name, target } => Some(Command::PlaylistRemove {
+                        name: name.clone(),
+                        target: target.clone(),
+                    }),
+                    PlaylistAction::Show { name } => {
+                        Some(Command::PlaylistShow { name: name.clone() })
+                    }
+                },
                 Subcommands::Daemon => None,
             }
         } else {
@@ -171,5 +259,61 @@ mod tests {
 
         let cli = Cli::parse_from(["uplay", "queue", "--clear"]);
         assert_eq!(cli.to_command(), Some(Command::QueueClear));
+    }
+
+    #[test]
+    fn test_cli_playlist_subcommands() {
+        let cli = Cli::parse_from([
+            "uplay",
+            "playlist",
+            "save",
+            "coding",
+            "song1.mp3",
+            "song2.mp3",
+        ]);
+        assert_eq!(
+            cli.to_command(),
+            Some(Command::PlaylistSave {
+                name: "coding".into(),
+                targets: vec!["song1.mp3".into(), "song2.mp3".into()],
+            })
+        );
+
+        let cli = Cli::parse_from(["uplay", "playlist", "load", "coding"]);
+        assert_eq!(
+            cli.to_command(),
+            Some(Command::PlaylistLoad {
+                name: "coding".into(),
+            })
+        );
+
+        let cli = Cli::parse_from(["uplay", "playlist", "list"]);
+        assert_eq!(cli.to_command(), Some(Command::PlaylistList));
+
+        let cli = Cli::parse_from(["uplay", "playlist", "delete", "coding"]);
+        assert_eq!(
+            cli.to_command(),
+            Some(Command::PlaylistDelete {
+                name: "coding".into(),
+            })
+        );
+
+        let cli = Cli::parse_from(["uplay", "playlist", "add", "coding", "song3.flac"]);
+        assert_eq!(
+            cli.to_command(),
+            Some(Command::PlaylistAdd {
+                name: "coding".into(),
+                targets: vec!["song3.flac".into()],
+            })
+        );
+
+        let cli = Cli::parse_from(["uplay", "playlist", "remove", "coding", "1"]);
+        assert_eq!(
+            cli.to_command(),
+            Some(Command::PlaylistRemove {
+                name: "coding".into(),
+                target: "1".into(),
+            })
+        );
     }
 }

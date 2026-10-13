@@ -30,4 +30,43 @@ fn test_cli_parsing_commands() {
         cli.to_command(),
         Some(Command::Queue("https://example.com/stream.mp3".into()))
     );
+
+    let args = [
+        "uplay",
+        "playlist",
+        "save",
+        "coding",
+        "track1.mp3",
+        "track2.ogg",
+    ];
+    let cli = Cli::parse_from(args);
+    assert_eq!(
+        cli.to_command(),
+        Some(Command::PlaylistSave {
+            name: "coding".into(),
+            targets: vec!["track1.mp3".into(), "track2.ogg".into()],
+        })
+    );
+
+    let args = ["uplay", "playlist", "load", "coding"];
+    let cli = Cli::parse_from(args);
+    assert_eq!(
+        cli.to_command(),
+        Some(Command::PlaylistLoad {
+            name: "coding".into(),
+        })
+    );
+
+    let args = ["uplay", "playlist", "list"];
+    let cli = Cli::parse_from(args);
+    assert_eq!(cli.to_command(), Some(Command::PlaylistList));
+
+    let args = ["uplay", "playlist", "delete", "coding"];
+    let cli = Cli::parse_from(args);
+    assert_eq!(
+        cli.to_command(),
+        Some(Command::PlaylistDelete {
+            name: "coding".into(),
+        })
+    );
 }

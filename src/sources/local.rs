@@ -30,6 +30,18 @@ impl LocalResolver {
             .unwrap_or(false)
     }
 
+    /// Check if a path corresponds to an M3U or M3U8 playlist file.
+    #[must_use]
+    pub fn is_playlist_file(path: &Path) -> bool {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| {
+                let ext_lower = ext.to_ascii_lowercase();
+                ext_lower == "m3u" || ext_lower == "m3u8"
+            })
+            .unwrap_or(false)
+    }
+
     /// Resolve a local path into a `MediaItem`, validating existence and format.
     pub fn resolve_file(&self, path: impl Into<PathBuf>) -> Result<MediaItem> {
         let path = path.into();
@@ -126,6 +138,9 @@ impl LocalResolver {
 
         if path.is_dir() {
             self.scan_directory(path)
+        } else if Self::is_playlist_file(path) {
+            let playlist = crate::core::Playlist::from_m3u_file(path)?;
+            Ok(playlist.items)
         } else {
             let item = self.resolve_file(path.to_path_buf())?;
             Ok(vec![item])
@@ -194,5 +209,13 @@ mod tests {
         let err = resolver.scan_directory(&temp_dir);
         assert!(err.is_err());
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_is_playlist_file() {
+        assert!(LocalResolver::is_playlist_file(Path::new("playlist.m3u")));
+        assert!(LocalResolver::is_playlist_file(Path::new("playlist.M3U8")));
+        assert!(!LocalResolver::is_playlist_file(Path::new("song.mp3")));
+        assert!(!LocalResolver::is_playlist_file(Path::new("file.txt")));
     }
 }

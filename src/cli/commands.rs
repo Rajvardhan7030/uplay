@@ -38,4 +38,49 @@ pub enum Command {
     QueueClear,
     /// Inspect / list all queued tracks.
     QueueList,
+    /// Save active or specified tracks to a named persistent playlist.
+    PlaylistSave {
+        /// Playlist name.
+        name: String,
+        /// Optional audio tracks, folders, or URLs to save.
+        targets: Vec<String>,
+    },
+    /// Load and play a persistent playlist by name.
+    PlaylistLoad {
+        /// Playlist name.
+        name: String,
+    },
+    /// List all saved persistent playlists.
+    PlaylistList,
+    /// Delete a saved persistent playlist by name.
+    PlaylistDelete {
+        /// Playlist name.
+        name: String,
+    },
+    /// Create a new persistent playlist.
+    PlaylistCreate {
+        /// Playlist name.
+        name: String,
+        /// Audio tracks, folders, or URLs to initialize with.
+        targets: Vec<String>,
+    },
+    /// Add audio tracks, folders, or URLs to an existing playlist.
+    PlaylistAdd {
+        /// Playlist name.
+        name: String,
+        /// Audio targets to append.
+        targets: Vec<String>,
+    },
+    /// Remove an audio track from a playlist by 1-based index or title/target.
+    PlaylistRemove {
+        /// Playlist name.
+        name: String,
+        /// Target title, path, or 1-based index.
+        target: String,
+    },
+    /// Inspect / show tracks within a saved playlist.
+    PlaylistShow {
+        /// Playlist name.
+        name: String,
+    },
 }
