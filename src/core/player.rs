@@ -345,6 +345,50 @@ impl PlayerEngine {
         Ok(Some(item))
     }
 
+    /// Play a specific track index in the active playlist directly.
+    pub fn play_track_at(&mut self, index: usize) -> Result<Option<MediaItem>> {
+        if index >= self.state.playlist.len() {
+            return Ok(None);
+        }
+        self.current_index = Some(index);
+        if self.state.playback_mode == PlaybackMode::Shuffle {
+            if let Some(pos) = self.shuffle_order.iter().position(|&i| i == index) {
+                self.shuffle_pos = pos;
+            }
+        }
+        let item = self.state.playlist[index].clone();
+        self.load_and_play(item.clone())?;
+        Ok(Some(item))
+    }
+
+    /// Add an item to the end of the active playlist.
+    pub fn add_playlist_item(&mut self, item: MediaItem) {
+        self.state.playlist.push(item);
+        if self.state.playback_mode == PlaybackMode::Shuffle {
+            self.rebuild_shuffle_order();
+        }
+    }
+
+    /// Remove an item from the active playlist at the given index.
+    pub fn remove_playlist_item(&mut self, index: usize) -> Option<MediaItem> {
+        if index >= self.state.playlist.len() {
+            return None;
+        }
+        let removed = self.state.playlist.remove(index);
+        if let Some(curr) = self.current_index {
+            if curr == index {
+                let _ = self.stop();
+                self.current_index = None;
+            } else if curr > index {
+                self.current_index = Some(curr - 1);
+            }
+        }
+        if self.state.playback_mode == PlaybackMode::Shuffle {
+            self.rebuild_shuffle_order();
+        }
+        Some(removed)
+    }
+
     /// Adjust volume level (0..=100).
     pub fn set_volume(&mut self, volume: u8) -> Result<()> {
         let vol = volume.min(100);

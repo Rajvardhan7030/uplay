@@ -83,4 +83,6 @@ pub enum Command {
         /// Playlist name.
         name: String,
     },
+    /// Launch the interactive Terminal User Interface (TUI).
+    Tui,
 }

@@ -95,6 +95,8 @@ pub enum Subcommands {
         #[command(subcommand)]
         action: PlaylistAction,
     },
+    /// Open the interactive Terminal User Interface (TUI).
+    Tui,
     /// Start the background playback daemon.
     Daemon,
 }
@@ -217,6 +219,7 @@ impl Cli {
                         Some(Command::PlaylistShow { name: name.clone() })
                     }
                 },
+                Subcommands::Tui => Some(Command::Tui),
                 Subcommands::Daemon => None,
             }
         } else {

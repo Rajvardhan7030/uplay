@@ -182,10 +182,18 @@ fn run(cli: Cli) -> Result<()> {
                 println!("  {}. {}", idx + 1, item.title);
             }
         }
+        Some(Command::Tui) => {
+            uplay::tui::run()?;
+        }
         None => {
-            // No command given; in future phases this opens the interactive TUI
-            println!("UPlay - A lightweight, Linux-first music player");
-            println!("Run 'uplay --help' for available commands.");
+            if std::io::IsTerminal::is_terminal(&std::io::stdout())
+                && std::io::IsTerminal::is_terminal(&std::io::stdin())
+            {
+                uplay::tui::run()?;
+            } else {
+                println!("UPlay - A lightweight, Linux-first music player");
+                println!("Run 'uplay --help' for available commands.");
+            }
         }
     }
 
