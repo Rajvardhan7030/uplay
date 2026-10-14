@@ -87,6 +87,8 @@ uplay /path/to/song.flac --shuffle
 #use repeat
 uplay /path/to/song.flac --repeat one
 
+# use tui 
+executing uplay without argument will trigger tui
 ```
 ---
 
