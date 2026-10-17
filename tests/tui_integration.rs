@@ -291,6 +291,26 @@ fn test_tui_queue_operations() {
     handle_key_event(&mut app, &mut engine, KeyCode::Tab, KeyModifiers::NONE).unwrap();
     assert_eq!(app.active_view, ActiveView::Playlist);
     assert_eq!(app.active_items_count(), 2);
+
+    // Test direct '2' key to switch to Queue
+    handle_key_event(
+        &mut app,
+        &mut engine,
+        KeyCode::Char('2'),
+        KeyModifiers::NONE,
+    )
+    .unwrap();
+    assert_eq!(app.active_view, ActiveView::Queue);
+
+    // Test direct '1' key to switch back to Playlist
+    handle_key_event(
+        &mut app,
+        &mut engine,
+        KeyCode::Char('1'),
+        KeyModifiers::NONE,
+    )
+    .unwrap();
+    assert_eq!(app.active_view, ActiveView::Playlist);
 }
 
 #[test]

@@ -18,30 +18,33 @@ pub fn format_now_playing(app: &TuiApp) -> String {
 
 fn format_duration(dur: Duration) -> String {
     let secs = dur.as_secs();
-    let mins = secs / 60;
+    let hours = secs / 3600;
+    let mins = (secs % 3600) / 60;
     let rem_secs = secs % 60;
-    format!("{mins:02}:{rem_secs:02}")
+
+    if hours > 0 {
+        format!("{hours:02}:{mins:02}:{rem_secs:02}")
+    } else {
+        format!("{mins:02}:{rem_secs:02}")
+    }
 }
 
 fn format_bar(pos: Duration, total: Option<Duration>, width: usize) -> String {
     let width = width.max(5);
     match total {
-        Some(tot) if tot.as_secs() > 0 => {
+        Some(tot) if tot.as_secs_f64() > 0.0 => {
             let ratio = (pos.as_secs_f64() / tot.as_secs_f64()).clamp(0.0, 1.0);
             let filled = (ratio * width as f64).round() as usize;
             let head = filled.saturating_sub(1);
             let empty = width.saturating_sub(filled);
             let arrow = if filled < width && filled > 0 {
                 ">"
-            } else {
+            } else if filled == width {
                 "="
+            } else {
+                ""
             };
-            format!(
-                "[{}{}{}]",
-                "=".repeat(head),
-                if filled > 0 { arrow } else { "" },
-                " ".repeat(empty)
-            )
+            format!("[{}{}{}]", "=".repeat(head), arrow, " ".repeat(empty))
         }
         _ => format!("[{}]", "-".repeat(width)),
     }
@@ -180,7 +183,8 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
     }
 
     // 4. Section Header / Divider
-    let is_dual_column = inner_width >= 56;
+    let show_queue = !app.player_state.queue.is_empty() || app.active_view == ActiveView::Queue;
+    let is_dual_column = inner_width >= 56 && show_queue;
     let (left_col_w, right_col_w) = if is_dual_column {
         let l = (inner_width * 6) / 10;
         let r = inner_width.saturating_sub(l + 1);
@@ -216,7 +220,19 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
         let right_header_fill = pad_or_truncate_fill(&format!("─ {q_header} "), right_col_w, '─');
         lines.push(format!("├{}┬{}┤", left_header_fill, right_header_fill));
     } else {
-        let tab_str = format!("─ {pl_header}  {q_header} ");
+        let tab_str = if app.active_view == ActiveView::Playlist {
+            format!(
+                "─ [*] [1] Playlist ({}) ── [2] Queue ({}) [Tab] ",
+                app.player_state.playlist.len(),
+                app.player_state.queue.len()
+            )
+        } else {
+            format!(
+                "─ [1] Playlist ({}) ── [*] [2] Queue ({}) [Tab] ",
+                app.player_state.playlist.len(),
+                app.player_state.queue.len()
+            )
+        };
         lines.push(format!(
             "├{}┤",
             pad_or_truncate_fill(&tab_str, inner_width, '─')
@@ -250,7 +266,18 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
                 (false, false) => "   ",
             };
 
-            format!("{}{}. {}", prefix, actual_idx + 1, item.title)
+            let artist_info = item
+                .artist
+                .as_deref()
+                .map(|a| format!(" ({a})"))
+                .unwrap_or_default();
+            format!(
+                "{}{}. {}{}",
+                prefix,
+                actual_idx + 1,
+                item.title,
+                artist_info
+            )
         } else if app.player_state.playlist.is_empty() && row == 0 {
             "   (Playlist is empty - press 'a' to add)".to_string()
         } else if !app.search_query.is_empty() && filtered_indices.is_empty() && row == 0 {
@@ -266,7 +293,12 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
                 let is_selected =
                     app.active_view == ActiveView::Queue && app.selected_index == q_idx;
                 let prefix = if is_selected { " > " } else { "   " };
-                format!("{}{}. {}", prefix, q_idx + 1, item.title)
+                let artist_info = item
+                    .artist
+                    .as_deref()
+                    .map(|a| format!(" ({a})"))
+                    .unwrap_or_default();
+                format!("{}{}. {}{}", prefix, q_idx + 1, item.title, artist_info)
             } else if app.player_state.queue.is_empty() && row == 0 {
                 "   (Queue is empty)".to_string()
             } else {
@@ -287,9 +319,14 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
                         let item = &app.player_state.queue[q_idx];
                         let is_selected = app.selected_index == q_idx;
                         let prefix = if is_selected { " > " } else { "   " };
-                        format!("{}{}. {}", prefix, q_idx + 1, item.title)
+                        let artist_info = item
+                            .artist
+                            .as_deref()
+                            .map(|a| format!(" ({a})"))
+                            .unwrap_or_default();
+                        format!("{}{}. {}{}", prefix, q_idx + 1, item.title, artist_info)
                     } else if app.player_state.queue.is_empty() && row == 0 {
-                        "   (Queue is empty)".to_string()
+                        "   (Queue is empty - press 'e' on a playlist track to enqueue)".to_string()
                     } else {
                         String::new()
                     }
@@ -323,7 +360,14 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
             ActiveView::Playlist => "Playlist",
             ActiveView::Queue => "Queue",
         };
-        format!(" Focus: {view_name}  [Tab] Switch focus  [/] Search  [a] Add track  [d] Remove")
+        if show_queue {
+            format!(
+                " Focus: {view_name}  [Tab] Switch focus  [/] Search  [a] Add track  [d] Remove  [c] Clear Queue"
+            )
+        } else {
+            " Focus: Playlist  [e] Enqueue  [Tab] View Queue  [/] Search  [a] Add track  [d] Remove"
+                .to_string()
+        }
     };
     lines.push(format!("│{}│", pad_or_truncate(&prompt_line, inner_width)));
 
@@ -417,5 +461,60 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_queue_conditional_visibility() {
+        let mut app = TuiApp::new();
+        app.player_state.playlist = vec![
+            MediaItem::from_local_path("song1.mp3"),
+            MediaItem::from_local_path("song2.flac"),
+        ];
+
+        // 1. Initially queue is empty and active view is Playlist:
+        // Dual column divider ┬ should NOT be rendered in the header.
+        let frame_collapsed = render_frame(&app, 80, 24);
+        assert!(!frame_collapsed.contains('┬'));
+        assert!(frame_collapsed.contains("Playlist (2)"));
+        assert!(frame_collapsed.contains("Queue (0)"));
+        assert!(frame_collapsed.contains("song1.mp3"));
+        assert!(frame_collapsed.contains("song2.flac"));
+
+        // 2. User enqueues a track: queue is no longer empty!
+        // Queue column divider ┬ should now appear!
+        app.player_state
+            .queue
+            .push(MediaItem::from_local_path("enqueued.wav"));
+        let frame_with_queue = render_frame(&app, 80, 24);
+        assert!(frame_with_queue.contains('┬'));
+        assert!(frame_with_queue.contains("enqueued.wav"));
+
+        // 3. Queue is cleared, but user presses Tab to switch to Queue view:
+        app.player_state.queue.clear();
+        app.active_view = ActiveView::Queue;
+        let frame_tab_queue = render_frame(&app, 80, 24);
+        assert!(frame_tab_queue.contains('┬'));
+        assert!(frame_tab_queue.contains("Queue is empty"));
+
+        // 4. User presses Tab to switch back to Playlist:
+        app.active_view = ActiveView::Playlist;
+        let frame_collapsed_again = render_frame(&app, 80, 24);
+        assert!(!frame_collapsed_again.contains('┬'));
+    }
+
+    #[test]
+    fn test_format_bar_progression() {
+        let total = Some(Duration::from_secs(100));
+        let bar0 = format_bar(Duration::ZERO, total, 10);
+        assert_eq!(bar0, "[          ]");
+
+        let bar50 = format_bar(Duration::from_secs(50), total, 10);
+        assert_eq!(bar50, "[====>     ]");
+
+        let bar100 = format_bar(Duration::from_secs(100), total, 10);
+        assert_eq!(bar100, "[==========]");
+
+        let bar_none = format_bar(Duration::from_secs(50), None, 10);
+        assert_eq!(bar_none, "[----------]");
     }
 }

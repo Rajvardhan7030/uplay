@@ -170,8 +170,11 @@ impl PlayerEngine {
     }
 
     /// Load and prepare a track for playback without starting.
-    pub fn load(&mut self, item: MediaItem) -> Result<()> {
+    pub fn load(&mut self, mut item: MediaItem) -> Result<()> {
         self.backend.load(&item.source)?;
+        if item.duration.is_none() {
+            item.duration = self.backend.duration();
+        }
         self.state.current_item = Some(item);
         self.state.position = Duration::ZERO;
         self.state.status = PlayerStatus::Stopped;
@@ -191,6 +194,7 @@ impl PlayerEngine {
         } else {
             self.backend.play()?;
             self.state.status = PlayerStatus::Playing;
+            self.sync_state();
         }
         Ok(())
     }
@@ -200,6 +204,7 @@ impl PlayerEngine {
         if self.state.status == PlayerStatus::Playing {
             self.backend.pause()?;
             self.state.status = PlayerStatus::Paused;
+            self.sync_state();
         }
         Ok(())
     }
@@ -421,10 +426,24 @@ impl PlayerEngine {
             .or_else(|| self.state.current_item.as_ref().and_then(|i| i.duration))
     }
 
-    /// Check if audio playback has completed.
+    /// Check if audio playback has completed naturally while actively playing.
     #[must_use]
     pub fn is_finished(&self) -> bool {
-        self.backend.is_finished()
+        self.state.status == PlayerStatus::Playing && self.backend.is_finished()
+    }
+
+    /// Synchronize dynamic playback state (position and duration) from the audio backend into `state`.
+    pub fn sync_state(&mut self) {
+        if self.state.status == PlayerStatus::Playing || self.state.status == PlayerStatus::Paused {
+            self.state.position = self.backend.position();
+        }
+        if let Some(dur) = self.backend.duration() {
+            if let Some(cur) = &mut self.state.current_item {
+                if cur.duration.is_none() {
+                    cur.duration = Some(dur);
+                }
+            }
+        }
     }
 
     /// Set playback mode (Sequential, Shuffle, RepeatOne, RepeatPlaylist).
@@ -533,6 +552,7 @@ impl PlayerEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::Source;
 
     #[test]
     fn test_player_engine_navigation() {
@@ -642,5 +662,61 @@ mod tests {
         assert_eq!(tb.title, "b.mp3");
         let ta = engine.next().unwrap().unwrap();
         assert_eq!(ta.title, "a.mp3"); // wrapped around!
+    }
+
+    #[test]
+    fn test_sync_state_updates_position_and_duration() {
+        struct MockDynamicBackend {
+            pos: Duration,
+            dur: Option<Duration>,
+        }
+        impl AudioBackend for MockDynamicBackend {
+            fn load(&mut self, _s: &Source) -> Result<()> {
+                Ok(())
+            }
+            fn play(&mut self) -> Result<()> {
+                Ok(())
+            }
+            fn pause(&mut self) -> Result<()> {
+                Ok(())
+            }
+            fn stop(&mut self) -> Result<()> {
+                Ok(())
+            }
+            fn seek(&mut self, p: Duration) -> Result<()> {
+                self.pos = p;
+                Ok(())
+            }
+            fn set_volume(&mut self, _v: u8) -> Result<()> {
+                Ok(())
+            }
+            fn position(&self) -> Duration {
+                self.pos
+            }
+            fn duration(&self) -> Option<Duration> {
+                self.dur
+            }
+        }
+
+        let backend = Box::new(MockDynamicBackend {
+            pos: Duration::from_secs(12),
+            dur: Some(Duration::from_secs(200)),
+        });
+        let mut engine = PlayerEngine::with_backend(backend);
+        let track = MediaItem::from_local_path("test.mp3");
+        engine.load(track).unwrap();
+        engine.play().unwrap();
+
+        // Check that position was synced from backend on play
+        assert_eq!(engine.state().position, Duration::from_secs(12));
+        assert_eq!(
+            engine.state().current_item.as_ref().unwrap().duration,
+            Some(Duration::from_secs(200))
+        );
+
+        // Seek alters position and sync_state keeps it in sync
+        engine.seek(Duration::from_secs(42)).unwrap();
+        engine.sync_state();
+        assert_eq!(engine.state().position, Duration::from_secs(42));
     }
 }

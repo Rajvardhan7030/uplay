@@ -103,6 +103,7 @@ pub fn run_with_engine(engine: Option<PlayerEngine>) -> Result<()> {
             let _ = engine.next();
         }
 
+        engine.sync_state();
         app.update_state(engine.state().clone());
 
         let (cols, rows) = crossterm::terminal::size().unwrap_or((80, 24));

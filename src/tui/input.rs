@@ -164,6 +164,22 @@ pub fn handle_key_event(
             };
             app.set_status(format!("Switched view to {view_name}"));
         }
+        KeyCode::Char('1') => {
+            if app.active_view != ActiveView::Playlist {
+                app.active_view = ActiveView::Playlist;
+                app.selected_index = 0;
+                app.clamp_selection();
+                app.set_status("Switched view to Playlist");
+            }
+        }
+        KeyCode::Char('2') => {
+            if app.active_view != ActiveView::Queue {
+                app.active_view = ActiveView::Queue;
+                app.selected_index = 0;
+                app.clamp_selection();
+                app.set_status("Switched view to Queue");
+            }
+        }
         KeyCode::Char('/') => {
             app.start_search();
         }
