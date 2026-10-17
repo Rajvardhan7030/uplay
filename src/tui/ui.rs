@@ -104,7 +104,7 @@ pub fn render_lines(app: &TuiApp, width: u16, height: u16) -> Vec<String> {
         PlaybackMode::RepeatPlaylist => "Repeat All",
     };
     let status_line = format!(
-        " UPlay v0.1.0 │ Status: {} │ Mode: {} │ Volume: {:3}%",
+        " UPlay v1.0.1 │ Status: {} │ Mode: {} │ Volume: {:3}%",
         status_str, mode_str, app.player_state.volume
     );
     lines.push(format!("│{}│", pad_or_truncate(&status_line, inner_width)));
@@ -421,7 +421,7 @@ mod tests {
         app.player_state.position = Duration::from_secs(30);
 
         let frame = render_frame(&app, 80, 24);
-        assert!(frame.contains("UPlay v0.1.0"));
+        assert!(frame.contains("UPlay v1.0.1"));
         assert!(frame.contains("▶ Playing"));
         assert!(frame.contains("01_intro.mp3"));
         assert!(frame.contains("02_chorus.flac"));

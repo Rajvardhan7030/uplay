@@ -326,19 +326,19 @@ fn test_tui_render_frame_sizing() {
 
     // Standard 80x24 terminal
     let frame80 = render_frame(&app, 80, 24);
-    assert!(frame80.contains("UPlay v0.1.0"));
+    assert!(frame80.contains("UPlay v1.0.1"));
     assert!(frame80.contains("track1.mp3"));
     assert!(frame80.contains("track2.wav"));
     assert!(frame80.contains("00:45"));
 
     // Larger 120x40 terminal
     let frame120 = render_frame(&app, 120, 40);
-    assert!(frame120.contains("UPlay v0.1.0"));
+    assert!(frame120.contains("UPlay v1.0.1"));
     assert!(frame120.contains("track1.mp3"));
 
     // Compact 60x16 terminal
     let frame60 = render_frame(&app, 60, 16);
-    assert!(frame60.contains("UPlay v0.1.0"));
+    assert!(frame60.contains("UPlay v1.0.1"));
     assert!(frame60.contains("track1.mp3"));
 
     // Small split pane 50x12 terminal
